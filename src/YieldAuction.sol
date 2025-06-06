@@ -34,6 +34,8 @@ contract YieldAuction is Ownable {
     /////////////////////////////////////
     error YieldAuction__AmountShouldBeGreaterThanZero();
     error YieldAuction__BidIndexGreaterThanAllowed();
+    error YieldAuction__NoSelectedBidForWithdrawal();
+    error YieldAuction__WithdrawalFailed();
 
     /////////////////////////////////////
     ///       Type Declaration        ///
@@ -41,6 +43,7 @@ contract YieldAuction is Ownable {
     struct Bid {
         address bidder;
         uint256 promisedYield;
+        uint256 amount;
     }
 
     ////////////////////////////////////
@@ -65,27 +68,13 @@ contract YieldAuction is Ownable {
     /////////////////////////////////////
     ///  External & Public Functions  ///
     /////////////////////////////////////
-
-    /*
-     * @param amount: Amount of tokens that user wants to deposit.
-     * @notice This function will transfer tokens from user to this smart contract. User's balance will be updated. 
-     */
-    // function deposit(uint256 amount) external payable {
-    //     if (amount <= 0) {
-    //         revert YieldAuction__AmountShouldBeGreaterThanZero();
-    //     }
-    //     i_token.transferFrom(msg.sender, address(this), amount);
-    //     s_balance[msg.sender] += amount;
-    // }
-
     /*
      * @param tokenHolder: Address of the user that owns the token for which protocol will submit a bid
-     * @param promisedYield: Yield promised by the protocl to the user
-     * @param contractCode: The amount of DSC you want to mint
-     * @notice This function will deposit your collateral and mint DSC in one transaction
+     * @param promisedYield: Yield promised by the protocol to the user     
+     * @notice This function will submit a bid for user's tokens. To be used by Defi protocols
      */
-    function submitBid(address tokenHolder, uint256 promisedYield) external {
-        s_bids[tokenHolder].push(Bid(msg.sender, promisedYield));
+    function submitBid(address tokenHolder, uint256 promisedYield, uint256 amount) external {
+        s_bids[tokenHolder].push(Bid(msg.sender, promisedYield, amount));
     }
 
     /*
@@ -93,13 +82,31 @@ contract YieldAuction is Ownable {
      * @notice This function will transfer tokens from user to this smart contract. User's balance will be updated. 
      */
     function selectAndProcessBid(uint256 bidIndex) external {
-        if (s_bids[msg.sender].length < bidIndex) {
+        if (bidIndex >= s_bids[msg.sender].length) {
             revert YieldAuction__BidIndexGreaterThanAllowed();
         }
         s_selectedBid[msg.sender] = s_bids[msg.sender][bidIndex];
     }
 
-    function withdrawFromProtocol() external {}
+    /*    
+     * @notice This function will deposit your collateral and mint DSC in one transaction
+     */
+    function withdrawFromProtocol() external {
+        Bid memory selectedBid = s_selectedBid[msg.sender];
+        if (selectedBid.bidder == address(0)) {
+            revert YieldAuction__NoSelectedBidForWithdrawal();
+        }
+        (bool success,) = selectedBid.bidder.call(
+            abi.encodeWithSignature(
+                "withdraw(address,uint256,uint256)", msg.sender, selectedBid.amount, selectedBid.promisedYield
+            )
+        );
+        if (!success) {
+            revert YieldAuction__WithdrawalFailed();
+        }
+        // Update selected bid state variable and set it to default value after withdrawal by user.
+        delete(s_selectedBid[msg.sender]);
+    }
 
     ////////////////////////////////////////////
     ///  Public and External View Functions  ///
@@ -113,8 +120,6 @@ contract YieldAuction is Ownable {
     // }
 
     function getSelectedBid() external view returns (Bid memory) {
-        console2.log("Inside getSelectedBid msg.sender------------", msg.sender);
-        console2.log("bidder--------------", s_selectedBid[msg.sender].bidder);
         return s_selectedBid[msg.sender];
     }
 }
