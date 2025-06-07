@@ -47,10 +47,6 @@ contract BatchTokenTransferTest is Test {
         token.mint(TEST_USER_ADDRESS, 1e18);
     }
 
-    // User deposits tokens
-    // Protocol submits bids for user's tokens
-    // User selects the best bid
-    // Money to be transferred to protocol via EIP7702
     function testSponsoredExecution() public {
         uint256 depositAmount = 1e18;
         uint256 promisedYieldByProtocol1 = 5e16;

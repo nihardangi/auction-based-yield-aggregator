@@ -1,24 +1,3 @@
-// Layout of Contract:
-// version
-// imports
-// interfaces, libraries, contracts
-// errors
-// Type declarations
-// State variables
-// Events
-// Modifiers
-// Functions
-
-// Layout of Functions:
-// constructor
-// receive function (if exists)
-// fallback function (if exists)
-// external
-// public
-// internal
-// private
-// view & pure functions
-
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
@@ -29,15 +8,24 @@ import "forge-std/console2.sol";
 import "./YieldAuction.sol";
 
 contract BatchTokenTransfer {
+    /////////////////////////////////////
+    ///           Errors              ///
+    /////////////////////////////////////
     error BatchTokenTransfer__OnlyEOAAllowedToCall();
     error BatchTokenTransfer__OnlySelectedProtocolCanCall();
 
+    ////////////////////////////////////
+    ///       State Variables        ///
+    ////////////////////////////////////
     IERC20 immutable i_token;
     address payable immutable i_yieldAuction;
 
     /// @notice A nonce used for replay protection.
     uint256 public nonce;
 
+    ///////////////////////////////////
+    ///         Modifiers           ///
+    //////////////////////////////////
     modifier onlySelectedProtocol(address protocol) {
         // YieldAuction(i_yieldAuction)
 
@@ -47,6 +35,9 @@ contract BatchTokenTransfer {
         _;
     }
 
+    ///////////////////////////////////
+    ///         Functions           ///
+    //////////////////////////////////
     constructor(address tokenAddress, address payable yieldAuction) {
         i_token = IERC20(tokenAddress);
         i_yieldAuction = yieldAuction;

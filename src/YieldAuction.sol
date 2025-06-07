@@ -3,30 +3,23 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./BatchCallAndSponsor.sol";
 
 /*
      * @title YieldAuction
      * @author Nihar Dangi
      *
-     * The contract is designed to be as minimal as possible.
+     * The contract is designed to be as minimal as possible.    
      * 
-     * 
-     * 
-     * 
-     * This is a stablecoin with the properties:
-     * - Exogenously Collateralized
-     * - Dollar Pegged
-     * - Algorithmically Stable
+     * Typical flow:
+     * User deposits tokens
+     * Defi protocols submits bids for user's tokens.
+     * User selects the best bid.
+     * Tokens to be transferred from user to a Defi protocol via EIP7702. Now, the protocol can invest these tokens and earn from it.
+     * User can request a withdrawal at any time.
+     * Protocol transfers the tokens with yield back to the user.     
      *
-     * It is similar to DAI if DAI had no governance, no fees, and was backed by only WETH and WBTC.
-     *
-     * Our DSC system should always be "overcollateralized". At no point, should the value of
-     * all collateral < the $ backed value of all the DSC.
-     *
-     * @notice This contract is the core of the Decentralized Stablecoin system. It handles all the logic
-     * for minting and redeeming DSC, as well as depositing and withdrawing collateral.
-     * @notice This contract is based on the MakerDAO DSS system
+     * @notice This contract is the core of the yield auction engine. It handles all the logic
+     * for placing a bid and processing a bid, as well as token withdrawal from selected Defi protocol.
      */
 contract YieldAuction is Ownable {
     /////////////////////////////////////
@@ -96,6 +89,8 @@ contract YieldAuction is Ownable {
         if (selectedBid.bidder == address(0)) {
             revert YieldAuction__NoSelectedBidForWithdrawal();
         }
+        // Delete entry from selected bid state variable so that it gets set to the default value.
+        delete(s_selectedBid[msg.sender]);
         (bool success,) = selectedBid.bidder.call(
             abi.encodeWithSignature(
                 "withdraw(address,uint256,uint256)", msg.sender, selectedBid.amount, selectedBid.promisedYield
@@ -104,8 +99,6 @@ contract YieldAuction is Ownable {
         if (!success) {
             revert YieldAuction__WithdrawalFailed();
         }
-        // Update selected bid state variable and set it to default value after withdrawal by user.
-        delete(s_selectedBid[msg.sender]);
     }
 
     ////////////////////////////////////////////
@@ -115,17 +108,7 @@ contract YieldAuction is Ownable {
         return s_bids[msg.sender];
     }
 
-    // function getBalance(address user) external view returns (uint256) {
-    //     return s_balance[user];
-    // }
-
     function getSelectedBid() external view returns (Bid memory) {
         return s_selectedBid[msg.sender];
     }
 }
-
-// User deposits money
-// Protocol submits a bid
-// User selects a bid
-// User's tokens are transferred to the protocol
-// Protocol returns the token with yield
